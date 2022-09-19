@@ -8,7 +8,7 @@ def parsr_table_maker(stocks : pd.DataFrame):
 parsr = ParsrClient('localhost:3001')
 
 parsr.send_document(
-    file_path='annual-reports/AADV_annual_report.pdf',
+    file_path='westminster-health.pdf',
     config_path='defaultConfig.json',
     document_name='AADV Annual Report',
     save_request_id=True

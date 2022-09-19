@@ -8,14 +8,68 @@ from bs4 import BeautifulSoup
 import numpy as np
 import pandas as pd
 
+from urllib.parse import urlencode, urlunparse
+from urllib.request import urlopen, Request
+from bs4 import BeautifulSoup
+
 from secrets import CX, CUSTOM_SEARCH_API_KEY
 
+# these just for testing purposes
+trouble_some_pdfs = {}
+master_stocks = pd.read_csv("EOD_LSE_filtered_master_data.csv")
+master_stocks = master_stocks[:20]
 
 def get_URL_bs4(row):
     #_response = requests.get(,headers=headers)
     pass
 
-def get_URL(row, trouble_some_pdfs):
+def get_URL_bing_scrape(row, trouble_some_pdfs):
+    URL= None
+    _params = {}
+    headers = {"User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Safari/537.36'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36'}
+
+    try:
+        # TODO scrape Bing for filetype:pdf company name annual report
+        # https://stackoverflow.com/questions/61226395/get-bing-search-results-in-python
+        query = f"filetype:pdf {row['Description']} annual report"
+        url = urllib.parse.urlunparse(("https", "www.bing.com", "/search", "", urllib.parse.urlencode({"q": query}), ""))
+        #custom_user_agent = "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0"
+        req = urllib.request.Request(url, headers=headers)
+        page = urllib.request.urlopen(req)
+        # Further code I've left unmodified
+        soup = BeautifulSoup(page.read())
+        links = soup.findAll("a")
+        top_URL = links[0]["href"]
+        return top_URL
+        #for link in links:
+         #   print(link["href"])
+    except:
+        trouble_some_pdfs[row["Symbol"]] = np.nan
+
+        with open("tests/troublesome_URLs.json", 'w') as f:
+            json.dump(trouble_some_pdfs, f, indent=2)
+
+        return np.nan
+
+def get_URL_bing(row, trouble_some_pdfs):
+    URL= None
+    _params = {}
+    headers = {}
+
+    try:
+        # TODO scrape Bing for filetype:pdf company name annual report
+        return
+    except:
+        trouble_some_pdfs[row["Symbol"]] = np.nan
+
+        with open("tests/troublesome_URLs.json", 'w') as f:
+            json.dump(trouble_some_pdfs, f, indent=2)
+
+        return np.nan
+
+def get_URL_google(row, trouble_some_pdfs):
     '''goes through each row of dataset and searches for first URL link with filetype:pdf <Company Name> annual report'''
     #URL = "http://www.google.com/search?"
     URL = "https://customsearch.googleapis.com/customsearch/v1?"
@@ -82,8 +136,8 @@ def main():
     params =  {}
     trouble_some_pdfs = {}
 
-    # master_stocks["annual_report_URL"] = master_stocks.apply(lambda row: get_URL(row, URL), axis=1) # I commented this out to protect my 100 limit
-    # master_stocks.to_csv("my_stocks_master_with_URLs_and_PDF_paths.csv")
+    master_stocks["annual_report_URL"] = master_stocks.apply(lambda row: get_URL_google(row, trouble_some_pdfs), axis=1) # I commented this out to protect my 100 limit
+    master_stocks.to_csv("my_stocks_master_with_URLs_and_PDF_paths.csv")
     master_stocks.to_csv("EOD_LSE_merged_filtered_with_URLS_PDF_paths.csv") # although at this point you DON'T have the PDF paths!
 
     master_stocks = master_stocks.dropna()  # some URLs weren't retrievable - get rid of them
@@ -98,7 +152,7 @@ def main():
     master_stocks.to_csv("EOD_LSE_merged_filtered_with_URLS_PDF_paths.csv")
 
     # I've been rate limited for today ... :(
-    # test_stocks["annual_report_URL"] = test_stocks.apply(lambda row: get_URL(row), axis=1)
+    # test_stocks["annual_report_URL"] = test_stocks.apply(lambda row: get_URL_google(row), axis=1)
     # test_stocks = test_stocks.dropna()
     #
     # #test_stocks["PDF_path"] = master_stocks.apply(lambda row: download_annual_report(row), axis=1)
@@ -109,5 +163,5 @@ def main():
         json.dump(trouble_some_pdfs, f, indent=2)
 
 if __name__ == '__main__':
-    #main(CUSTOM_SEARCH_API_KEY)
+    main()
     pass

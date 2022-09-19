@@ -10,20 +10,16 @@ from camelot import read_pdf
 # from pdf_reader import camelot.read_pdf
 from parsr_getter import parsr_table_maker
 
-from pdf_URL_getter import get_URL, download_annual_report
+from pdf_URL_getter import get_URL_google, download_annual_report
 
 
 class StorePDFTables:
     # TODO everything is inside the __init__ scope -> how should I pass around self.master_stocks between my functions?
-    def __init__(self):
+    def __init__(self, path):
         '''initialises the data and makes sure everything is there'''
-        # some PDFs were irretrievable so you can drop those tickers here
-        self.trouble_some_pdfs = {}
-        self.master_stocks = pd.read_csv("my_stocks_master.csv")  # stock ticker together with revenue
-        self.master_stocks = pd.read_csv("my_stocks_master_with_URLs_and_PDF_paths.csv")
-        self.master_stocks = pd.read_csv(
-            "EOD_LSE_merged_filtered_with_URLS_PDF_paths.csv").dropna()  # perhaps this should be read from s3
-
+        self.trouble_some_pdfs = {} # for debugging the problem stock tickers
+        # TODO if a list of paths is passed in, merge them (on which column?) OR save for elsewhere
+        self.master_stocks = pd.read_csv(path).dropna()  # perhaps this should be read from s3
         self.total_revenue_tables_dict = {}  # don't need this since no camelot tables
 
         self.check_is_revenue_col() # check if ["Total Revenue 20/21"] is a column and place it there
@@ -44,7 +40,7 @@ class StorePDFTables:
         try:
             self.master_stocks["annual_report_URL"]
         except:
-            self.master_stocks.apply(lambda row: get_URL(row, trouble_some_pdfs=self.trouble_some_pdfs), axis=1)
+            self.master_stocks.apply(lambda row: get_URL_google(row, trouble_some_pdfs=self.trouble_some_pdfs), axis=1)
 
     def check_is_PDF_path(self):
 
@@ -62,4 +58,5 @@ class StorePDFTables:
 
 
 if __name__ == '__main__':
-    TablePDF = StorePDFTables()
+    TablePDF = StorePDFTables(
+            path="EOD_LSE_merged_filtered_with_URLS_PDF_paths.csv")
