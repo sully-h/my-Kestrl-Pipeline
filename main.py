@@ -85,7 +85,7 @@ class TableScraper:
     def get_csv_tables_from_pdf_camelot(self):
         """use Camelot to parse PDF documents into CSV files"""
         self.master_stocks = self.add_revenue_page_numbers()  # I need the page numbers for Camelot to run faster
-        self.master_stocks = CamelotTableScraper(self.master_stocks)
+        _camelot_scraper = CamelotTableScraper(self.master_stocks)
 
     def get_csv_tables_from_pdf_tabula(self):
         # TODO use Tabula to produce CSV files for each table
@@ -106,3 +106,4 @@ class Application:
 if __name__ == '__main__':
     # TablePDF = Extract(path="EOD_LSE_merged_filtered_with_URLS_PDF_paths.csv")
     table_scraper = TableScraper("EOD_LSE_merged_filtered_with_URLS_PDF_paths_with_Total_Revenue.csv")
+    table_scraper.get_csv_tables_from_pdf_camelot()
