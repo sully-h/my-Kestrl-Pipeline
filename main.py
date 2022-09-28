@@ -10,7 +10,7 @@ from driver_pdf_downloader import MyPDFDownloader  # opens a blank window for so
 from pdf_find_pages import pdf_find_pages
 from camelot import read_pdf
 # from pdf_reader import camelot.read_pdf
-from parsr_getter import parsr_table_maker
+#from parsr_getter import parsr_table_maker
 
 from pdf_URL_getter import get_URL_google, download_annual_report
 
@@ -71,10 +71,7 @@ class TableScraper:
         self.master_stocks = Extract(path).master_stocks
 
     def add_revenue_page_numbers(self):
-        PDF_page_hits_rev_df = self.master_stocks.apply(lambda row: pdf_find_pages(row["PDF_path"], row["Total "
-                                                                                                        "Revenue "
-                                                                                                        "20/21"]),
-                                                        expand=True) # expands into two new series
+        PDF_page_hits_rev_df = self.master_stocks.apply(lambda row: pdf_find_pages(xsearch_string=row["Total Revenue 20/21"],row=row), result_type='expand', axis=1) # expands into two new series
 
         df_with_rev_pages = pd.concat([self.master_stocks, PDF_page_hits_rev_df], axis='columns')
         df_with_rev_pages.to_csv("EOD_LSE_merged_Rev_page_numbers.csv") # keep the new data
@@ -84,7 +81,7 @@ class TableScraper:
     # TODO extend these methods to an interface because each of these libraries can return markdown and json too
     def get_csv_tables_from_pdf_camelot(self):
         """use Camelot to parse PDF documents into CSV files"""
-        self.master_stocks = self.add_revenue_page_numbers()  # I need the page numbers for Camelot to run faster
+        self.master_stocks = self.add_revenue_page_numbers()  # I need the page numbers for Camelot to run faster # this also captures the text files that are produced during extraction
         _camelot_scraper = CamelotTableScraper(self.master_stocks)
 
     def get_csv_tables_from_pdf_tabula(self):
@@ -95,7 +92,7 @@ class TableScraper:
     def get_csv_tables_from_pdf_parsr(self):
         # TODO use Parsr to produce CSV files
         """use Parsr(Docker Image) to produce CSV files for each table"""
-        parsr_table_maker(self.master_stocks)
+        #parsr_table_maker(self.master_stocks)
         # parsr_table_s3_uploader
 
 

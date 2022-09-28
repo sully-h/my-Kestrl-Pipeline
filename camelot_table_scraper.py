@@ -22,18 +22,18 @@ class CamelotTableScraper():
 
     def _get_camelot_table(self, row):
         """saves CSVs and pickle files for each PDF """
-        # print(row["Symbol"])
+        print(row["Symbol"])
         try:
             self.camelot_table_objects[row["Symbol"]] = camelot.read_pdf(row["PDF_path"], flavor='stream',
                                                                          pages=row['Rev PDF Page Numbers'])
 
             # save all the tables to CSVs inside a camelot-tables/ directory
-            pathlib.Path(f"camelot-tables/{row['Symbol']}")
+            pathlib.Path(f"camelot-tables/{row['Symbol']}").mkdir(parents=True, exist_ok=True)
             self.camelot_table_objects[row["Symbol"]].export(
                 f"camelot-tables/{row['Symbol']}/{row['Symbol']}-cam-tables.csv", f='csv')
 
             # save the pickled Camelot <TablesList> object (it can be used to export to new types)
-            pathlib.Path(f"camelot-TablesList-objects/")  # necessary?
+            pathlib.Path(f"camelot-TablesList-objects/").mkdir(parents=True, exist_ok=True)  # necessary?
             picklefile = open(f'{self.camelot_table_objects[row["Symbol"]]}-camelot-pickled-tableslist-obj', 'wb')
             pickle.dump(self.camelot_table_objects[row["Symbol"]], picklefile)
             picklefile.close()
@@ -41,7 +41,7 @@ class CamelotTableScraper():
             return 'Camelot Tables saved and pickled'
 
         except Exception as e:  # I got this EOF marker not found error and I want to catch it for later
-            self.camelot_table_objects[row["Symbol"]] = e.message
+            self.camelot_table_objects[row["Symbol"]] = e
             return 'No Camelot Tables'
 
 
