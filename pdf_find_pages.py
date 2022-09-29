@@ -5,8 +5,6 @@ import pathlib
 import re
 import PyPDF2
 
-# TODO save all the xpages into a directory for future  --> avoid extracting the same page twice unless the revenue is missing for the total document
-
 # TODO implement logger and catch stack trace - why do not all PDFs
 
 # TODO write a function that can adjust the search term until there's a match or give up and move onto the next page :sometimes there are commas, sometimes the precision in the document is lower so I have to remove sig figs
@@ -25,6 +23,7 @@ def pdf_find_pages(row=None, **kwargs):
 
     PDF_total_pages, Rev_PDF_Page_Numbers = _pdf_find_pages(xsearch_string=xsearch_string, row=row).values()
 
+    # function to change xsearch_str and search again
     if Rev_PDF_Page_Numbers:  # if the search term appears at least once
         return {'PDF_total_pages': PDF_total_pages, 'Rev PDF Page Numbers': Rev_PDF_Page_Numbers}
     else:  # remove trailing 0s and search again
@@ -101,7 +100,7 @@ def _pdf_find_pages(row=None, **kwargs):
 
     except:
         # logger.exception(f"Why is a msg required?{row['Symbol']}") # this causes an empty log file ??
-        logging.error(f"Why is a msg required?{row['Symbol']}")
+        logging.error(f"{row['Symbol']}", exc_info=1)
         return {'PDF_total_pages': np.nan, 'Rev PDF Page Numbers': np.nan}
 
 
@@ -109,7 +108,8 @@ def re_search(xsearch_string=None, xpage_text=None, xpage_nr=None, xlst_res: lis
     xhits = None
     xhits = re.search(xsearch_string, xpage_text.lower())  # search on the page # returns a <re.Match object; match='260.0'>
 
-    print(f"xhits:  {xhits}, '\n', xsearch_string:  {xsearch_string}, '\n', xpage_text.lower[:20]:  {xpage_text.lower()[:20]}")
+    #print(f"xhits:  {xhits}, '\n', xsearch_string:  {xsearch_string}, '\n', xpage_text.lower[:20]:  {xpage_text.lower()[:20]}")
+    logging.info(msg=f"xhits:  {xhits}, '\n', xsearch_string:  {xsearch_string}, '\n', xpage_text.lower[:20]:  {xpage_text.lower()[:20]}")
 
     if xhits:  # if the search is successful
         xlst_res.append(xpage_nr)
