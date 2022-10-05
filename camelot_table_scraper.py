@@ -12,6 +12,7 @@ from pdf_find_pages import pdf_find_pages
 
 import datetime
 
+from base import Base
 
 # tables = camelot.read_pdf('annual reports/visiomed_group_plan_strategique_veng (3).pdf')
 # tables = camelot.read_pdf('annual reports/spatial-annual-report-2021.pdf')
@@ -20,11 +21,14 @@ class CamelotTableScraper():
     def __init__(self, **kwargs):  # should master_stocks be a path to CSV file instead?
         # '''generates a column with Camelot <TableList n=n> data which can be exported''' # I decided to keep the df primitive
         """saves tables to CSV files and returns a success message or a failure message"""
+        # TODO find a way to allow the user to test CamelotTableScraper independently
+        self.master_stocks = Base.receive_data(self, **kwargs)
+
         self.kwargs = kwargs
         self.camelot_table_objects = {} # I use this to hold the Camelot <TableList> for each ticker until I save them and dump this
 
-        # accept either dataframe or path as an argument but not both
-        self.master_stocks = self.receive_data()
+        # accept either dataframe or path as an argument but not both # this was deprecated in favour of moving the method to Base
+        #self.master_stocks = self.receive_data()
 
         self.master_stocks["Camelot Success Message"]=self.master_stocks.apply(lambda row: self._get_camelot_table(row), axis=1)
 
@@ -44,16 +48,16 @@ class CamelotTableScraper():
                 e)  # TODO I want to put the stack trace in camelot_table-objects( and also log it to an external file
             return 'No Camelot Tables' # 'No Success'
 
-    def receive_data(self):
-        if self.kwargs.get("dataframe") is None and self.kwargs.get("path") is None:
-            raise ValueError("You must pass in one of dataframe or path")
-        if self.kwargs.get("dataframe") is not None and self.kwargs.get("path") is not None:
-            raise ValueError("You must pass in either the dataframe or the path to a CSV but not both")
-
-        if self.kwargs.get("dataframe") is not None:  # if it's a dataframe that's been passed in - use that
-            return self.kwargs.get("dataframe")
-        else:
-            return pd.read_csv(self.kwargs.get("path"))
+    # def receive_data(self):
+    #     if self.kwargs.get("dataframe") is None and self.kwargs.get("path") is None:
+    #         raise ValueError("You must pass in one of dataframe or path")
+    #     if self.kwargs.get("dataframe") is not None and self.kwargs.get("path") is not None:
+    #         raise ValueError("You must pass in either the dataframe or the path to a CSV but not both")
+    #
+    #     if self.kwargs.get("dataframe") is not None:  # if it's a dataframe that's been passed in - use that
+    #         return self.kwargs.get("dataframe")
+    #     else:
+    #         return pd.read_csv(self.kwargs.get("path"))
 
     def save_camelot_tables(self, row):
         HOME_DIR = "camelot-console-tables"
