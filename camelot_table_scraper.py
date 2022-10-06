@@ -3,16 +3,17 @@ import boto3
 import os
 import os.path
 
+import traceback
+
 import camelot
 import pathlib
 
 import numpy as np
 import pandas as pd
-from pdf_find_pages import pdf_find_pages
 
 import datetime
 
-from base import Base
+from readupload import ReadUpload
 
 # tables = camelot.read_pdf('annual reports/visiomed_group_plan_strategique_veng (3).pdf')
 # tables = camelot.read_pdf('annual reports/spatial-annual-report-2021.pdf')
@@ -22,12 +23,12 @@ class CamelotTableScraper():
         # '''generates a column with Camelot <TableList n=n> data which can be exported''' # I decided to keep the df primitive
         """saves tables to CSV files and returns a success message or a failure message"""
         # TODO find a way to allow the user to test CamelotTableScraper independently
-        self.master_stocks = Base.receive_data(self, **kwargs)
+        self.master_stocks = ReadUpload.receive_data(self, **kwargs)
 
         self.kwargs = kwargs
         self.camelot_table_objects = {} # I use this to hold the Camelot <TableList> for each ticker until I save them and dump this
 
-        # accept either dataframe or path as an argument but not both # this was deprecated in favour of moving the method to Base
+        # accept either dataframe or path as an argument but not both # this was deprecated in favour of moving the method to ReadUpload
         #self.master_stocks = self.receive_data()
 
         self.master_stocks["Camelot Success Message"]=self.master_stocks.apply(lambda row: self._get_camelot_table(row), axis=1)
@@ -36,16 +37,16 @@ class CamelotTableScraper():
         """saves CSVs and pickle files for each PDF """
         print(f'Reading (Camelot) PDF for {row["Symbol"]}')
         try:  # default camelot settings
-            self.camelot_table_objects[row["Symbol"]] = camelot.read_pdf(row["PDF_path"], flavor='stream',
-                                                                         pages=row['Rev PDF Page Numbers'])
-
+            # TODO if 'Rev PDF Page Numbers' is nan then the subsequent line will clearly error out - raise ValueError("expected ")
+            self.camelot_table_objects[row["Symbol"]] = camelot.read_pdf(row["PDF_path"], flavor='stream', pages=row['Rev PDF Page Numbers'])
             self.save_camelot_tables(row)
-
             return 'Camelot Tables saved and pickled' # 'Success'
 
         except Exception as e:  # I got this EOF marker not found error and I want to catch it for later
-            self.camelot_table_objects[row["Symbol"]] = print(
-                e)  # TODO I want to put the stack trace in camelot_table-objects( and also log it to an external file
+            self.camelot_table_objects[row["Symbol"]] = print(e)  # TODO I want to put the stack trace in camelot_table-objects( and also log it to an external file
+            print(traceback.format_exc())
+            if isinstance(row["Rev PDF Page Numbers"]):
+                print("Rev PDF Page Numbers for this row is nan")
             return 'No Camelot Tables' # 'No Success'
 
     # def receive_data(self):
@@ -71,7 +72,7 @@ class CamelotTableScraper():
 
         self._pickle_camelot_folder(row)
 
-    def upload_s3(self, row, HOME_DIR=None, EXPORT_PATH=None): # this could be removed from the class? or @staticmethod
+    def upload_s3(self, row, HOME_DIR=None, EXPORT_PATH=None): # TODO already in ReadUpload? this could be removed from the class? or @staticmethod
 
         s3 = boto3.resource("s3")
         bucket = s3.Bucket("kestrl-data-intern")
