@@ -26,6 +26,9 @@ class PDFUtility:
         self.kwargs = kwargs
         self.master_stocks = ReadUpload.receive_data(self, **kwargs)
 
+        self.is_hit=False
+        self.is_fresh_extracted=False
+
     def add_revenue_page_numbers(self):  # TODO move this to the camelot scraper or nah?
         '''add a column containing page numbers where the revenue appears & total pages in the PDF'''
         PDF_page_hits_rev_df = self.master_stocks.apply(lambda row: PDFUtility.pdf_find_pages(self, xsearch_string=row["Total Revenue 20/21"], row=row),
@@ -40,28 +43,28 @@ class PDFUtility:
         return total_df_with_rev_pages  # adds 'Rev PDF Page Numbers' and 'PDF_total_pages' columns
 
     def pdf_find_pages(self, row=None, **kwargs):
-        '''searches PDF for number - strips trailing 0s if Number doesn't exist'''
+        '''searches PDF for number - strips trailing 0s if Number doesn't exist''' # TODO delete all this
         xfile_pdf = kwargs.get("xfile_pdf", row["PDF_path"])
         xsearch_string = kwargs.get("xsearch_string", row["Total Revenue 20/21"])
-        xsearch_string = str(xsearch_string)  # TODO make search function that iterates through changes
+        xsearch_string = str(xsearch_string)  # TODO make search function that iterates through changes # this preprocessing should just happen in _pdf_find_pages
 
         PDF_total_pages, Rev_PDF_Page_Numbers = PDFUtility._pdf_find_pages( xsearch_string=xsearch_string, row=row).values() #
 
         # function to change xsearch_str and search again
-        if Rev_PDF_Page_Numbers:  # if the search term appears at least once
-            return {'PDF_total_pages': PDF_total_pages, 'Rev PDF Page Numbers': Rev_PDF_Page_Numbers}
-        else:  # remove trailing 0s and search again
-            xsearch_string = xsearch_string.rstrip("0").rstrip(".")
-            PDF_total_pages, Rev_PDF_Page_Numbers = PDFUtility._pdf_find_pages(xsearch_string=xsearch_string, row=row).values() #
-            if Rev_PDF_Page_Numbers:
-                return {'PDF_total_pages': PDF_total_pages, 'Rev PDF Page Numbers': Rev_PDF_Page_Numbers}
-            else:  # remove the 0s in the integer and search once more
-                xsearch_string = xsearch_string.rstrip("0")
-                PDF_total_pages, Rev_PDF_Page_Numbers = PDFUtility._pdf_find_pages( xsearch_string=xsearch_string, row=row).values() #
+        # if Rev_PDF_Page_Numbers:  # if the search term appears at least once
+        #     return {'PDF_total_pages': PDF_total_pages, 'Rev PDF Page Numbers': Rev_PDF_Page_Numbers}
+        # else:  # remove trailing 0s and search again
+        #     xsearch_string = xsearch_string.rstrip("0").rstrip(".")
+        #     PDF_total_pages, Rev_PDF_Page_Numbers = PDFUtility._pdf_find_pages(xsearch_string=xsearch_string, row=row).values() #
+        #     if Rev_PDF_Page_Numbers:
+        #         return {'PDF_total_pages': PDF_total_pages, 'Rev PDF Page Numbers': Rev_PDF_Page_Numbers}
+        #     else:  # remove the 0s in the integer and search once more
+        #         xsearch_string = xsearch_string.rstrip("0")
+        #         PDF_total_pages, Rev_PDF_Page_Numbers = PDFUtility._pdf_find_pages( xsearch_string=xsearch_string, row=row).values() #
 
         return {'PDF_total_pages': PDF_total_pages, 'Rev PDF Page Numbers': np.nan}
 
-    def _pdf_find_pages( row=None, **kwargs):
+    def _pdf_find_pages(row=None, **kwargs):
         '''
         find which page(s) Revenue is located in a pdf and return in dictionary
         input: pdf file and the string to search
@@ -73,9 +76,9 @@ class PDFUtility:
         xsearch_string = kwargs.get("xsearch_string", row["Total Revenue 20/21"])
         xfile_pdf = kwargs.get("xfile_pdf", row["PDF_path"])
 
+        xlst_res = []
         try:  # analysing the entire PDF
             xsearch_string = str(xsearch_string)
-            xlst_res = []
 
             xreader = PyPDF2.PdfFileReader(xfile_pdf)
 
@@ -85,32 +88,30 @@ class PDFUtility:
             for xpage_nr, xpage in enumerate(xreader.pages):  # for each page: extracts it (if there wasn't a hit) and gives the new hit
                 # first check if there is a text file with the page already and read it into xpage_text
                 is_fresh_extracted, xpage_text = PDFUtility.read_xpage(row, xpage=xpage, xpage_nr=xpage_nr)
-                PDFUtility.save_extracted_page(xpage_text=xpage_text, xpage_nr=xpage_nr) # now its getting saved
+                PDFUtility.save_extracted_page(row, xpage_text=xpage_text, xpage_nr=xpage_nr) # now its getting saved
 
+                is_hit=False # needs to be a list if I want to have it mutable and want it to change and respond to functions?
                 # search func
-                search_results = PDFUtility.re_search(xsearch_string=xsearch_string, xpage_text=xpage_text, xpage_nr=xpage_nr, xlst_res=xlst_res)  # was there a hit on this page? If so add it to xlst_res
-                is_hit, xlst_res = next(search_results)
+                while True: # searching xpage_text (one page) for xsearch_string
+                    page_hit = PDFUtility.check_revenue_orig(xsearch_string=xsearch_string, xtext=xpage_text, xpage_nr=xpage_nr) # checkrevenue1 next(checkrevenue)
+                    if page_hit:
+                        xlst_res.append(page_hit)
+                        break
+                    page_hit = PDFUtility.check_revenue_1(xsearch_string=xsearch_string, xtext=xpage_text, xpage_nr=xpage_nr)
+                    if page_hit:
+                        xlst_res.append(page_hit)
+                        break
+                    page_hit = PDFUtility.check_revenue_2(xsearch_string=xsearch_string, xtext=xpage_text, xpage_nr=None)
+                    if page_hit:
+                        xlst_res.append(page_hit)
+                        break
+                    xlst_res.append(page_hit) # page_hit=None if the page is devoid of all revenues
 
-                if is_hit:  # if the search term was found, move onto next page
-                    pass
-                elif not is_hit:  # trim the xsearch_string and search again BUT THIS IS ALREADY IN THE TOP THING
-                    pass # TODO adjust the search term here
-                else:  # if there's no hit, try extracting the page fresh
-                    if is_fresh_extracted:  # if the page was already extracted today, just move onto the next page since it's likely absent from the page
-                        pass
-                    else:  # only extract if it hasn't just been extracted
-                        xpage_text = xpage.extractText()
-                        PDFUtility.save_extracted_page(row, xpage_text=xpage_text, xpage_nr=xpage_nr)
-
-                        is_hit, xlst_res = PDFUtility.re_search( xsearch_string=xsearch_string, xpage_text=xpage_text,
-                                                     xpage_nr=xpage_nr, xlst_res=xlst_res)
-
-                is_fresh_extracted = False  # move onto the next page which hasn't been extracted yet
-
-            # str_page_hits = ', '.join(str(elmn) for elmn in xlst_res)
             return {'PDF_total_pages': xreader.numPages,
+                    'All Pages' : ', '.join(
+                        str(elmn) for elmn in xlst_res),
                     'Rev PDF Page Numbers': ', '.join(
-                        str(elmn) for elmn in xlst_res)}  # 'PDF_page_hits': xlst_res I removed this from the dict
+                        str(elmn) for elmn in xlst_res if elmn is not None)}  # 'PDF_page_hits': xlst_res I removed this from the dict
 
         except Exception as e:
             # logger.exception(f"Why is a msg required?{row['Symbol']}") # this causes an empty log file ??
@@ -119,6 +120,27 @@ class PDFUtility:
             return {'PDF_total_pages': np.nan, 'Rev PDF Page Numbers': np.nan}
 
 
+    def check_revenue_orig(xsearch_string=None, xtext=None, xpage_nr=None):
+        if re.search(xsearch_string, xtext):
+            return xpage_nr
+        else:
+            return None
+
+    def check_revenue_1(xsearch_string=None, xtext=None, xpage_nr=None):
+        xsearch_string = str(round(float(xsearch_string) / 10**6, 1))
+
+        if re.search(xsearch_string, xtext):
+            return xpage_nr
+        else:
+            return None
+
+    def check_revenue_2(xsearch_string=None, xtext=None, xpage_nr=None):
+        xsearch_string = str(round(float(xsearch_string) / 10 ** 6, 1))
+        #further processing like adding commas
+        if re.search(xsearch_string, xtext):
+            return xpage_nr
+        else:
+            return None
 
     def read_xpage(row, xpage=None, xpage_nr=None):
         ''' first check if there is a text file with the page already and read it into xpage_text'''
@@ -133,6 +155,7 @@ class PDFUtility:
             xpage_text = xpage.extractText()
             return is_fresh_extracted, xpage_text
 
+    # Deprecated
     def re_search(xsearch_string=None, xpage_text=None, xpage_nr=None, xlst_res: list = None): # remove self bcos this is static?
         xhits = None
         xhits = re.search(xsearch_string, xpage_text.lower())  # search on the page # returns a <re.Match object; match='260.0'>
@@ -149,7 +172,7 @@ class PDFUtility:
         xsearch_string = round(xsearch_string / 10**6)
         yield is_xhits, xlst_res  # if its False, either trim the xsearch_string or extract the file from fresh
 
-    def save_extracted_page(self, row, xpage_text=None, xpage_nr=None):
+    def save_extracted_page(row, xpage_text=None, xpage_nr=None):
         pathlib.Path(f"annual-reports-text-pages/{row['Symbol']}-pages").mkdir(parents=True,
                                                                                exist_ok=True)  # ensure there is a subdirectory for this stock ticker to store its pages txt in
         with open(f"annual-reports-text-pages/{row['Symbol']}-pages/page-nr-{xpage_nr}.txt", 'w',
